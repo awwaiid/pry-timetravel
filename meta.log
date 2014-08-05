@@ -1,0 +1,12 @@
+CHILD: 21499: I have a parent pid 21493
+PARENT 21493: I have a child pid 21499
+ME 21493: Thinking about time travel...
+ME 21493: previous_pid = [21499]
+ME 21493: I found a previous pid 21499! TIME TRAVEL TIME
+ME 21493: I resumed pid 21499... now time to wait
+PARENT 21534: I have a child pid 21551
+CHILD: 21551: I have a parent pid 21534
+ME 21534: Thinking about time travel...
+ME 21534: previous_pid = [21551]
+ME 21534: I found a previous pid 21551! TIME TRAVEL TIME
+ME 21534: I resumed pid 21551... now time to wait
