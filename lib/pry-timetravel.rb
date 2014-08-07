@@ -7,9 +7,9 @@ class PryTimetravel
   class << self
 
     def dlog(msg)
-      File.open("meta.log", 'a') do |file|
-        file.puts(msg)
-      end
+      #  File.open("meta.log", 'a') do |file|
+        #  file.puts(msg)
+      #  end
     end
 
     def checkpoint
