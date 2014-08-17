@@ -1,7 +1,5 @@
 # pry-timetravel
 
-DOES NOT WORK. DO NOT USE.
-
 Time travel! For your REPL!
 
     > x = 5
@@ -14,6 +12,8 @@ Time travel! For your REPL!
     5
 
 This is an attempt to package the proof of concept. API WILL CHANGE!
+
+WARNING: Time travel may cause zombies.
 
 ## Meta
 
