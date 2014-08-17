@@ -1,7 +1,5 @@
 # pry-timetravel
 
-DOES NOT WORK. DO NOT USE.
-
 Time travel! For your REPL!
 
     > x = 5
