@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name          = 'pry-timetravel'
-  s.version       = '0.0.1'
+  s.version       = '0.0.2'
   s.summary       = 'Timetravel'
   s.description   = 'Allows you to timetravel!'
   s.homepage      = 'https://github.com/awwaiid/pry-timetravel'
