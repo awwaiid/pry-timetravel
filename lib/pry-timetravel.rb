@@ -37,9 +37,9 @@ class PryTimetravel
       dlog("Back from SIGSTOP!")
 
       dlog("Returning to old SIGCONT")
-      Signal.trap('CONT', old_sigcont_handler)
+      Signal.trap('CONT', old_sigcont_handler || "DEFAULT")
       dlog("Returning to old SIGEXIT")
-      Signal.trap('EXIT', old_sigexit_handler)
+      Signal.trap('EXIT', old_sigexit_handler || "DEFAULT")
     end
 
     def snapshot
