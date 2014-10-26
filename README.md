@@ -26,6 +26,27 @@ There are a few more details, but that is the important bit.
 
 WARNING: Time travel may cause zombies.
 
+## KNOWN ISSUES
+
+### Redis fork detection
+
+Redis checks to see if you forked and yells at you about needing to reconnect.
+Reasonably so, as it is a crazy idea to use the same connection in forked
+children! But we are doing crazy things. In 3.1.0 the gem will auto-reconnect,
+or you can pass inherit_socket to the connection to stop that. Or you can do
+this to bypass safety measures:
+
+    class Redis
+      class Client
+        def ensure_connected
+          yield
+        end
+      end
+    end
+
+Maybe this will be a default hack that gets activated on your first snapshot at
+some point in the near future.
+
 ## Meta
 
 Released under the MIT license, see LICENSE.MIT for details. License is
