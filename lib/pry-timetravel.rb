@@ -45,7 +45,7 @@ class PryTimetravel
       Signal.trap('EXIT', old_sigexit_handler || "DEFAULT")
     end
 
-    def snapshot
+    def snapshot(parent = -> {}, child = -> {})
 
       # We need a root-parent to keep the shell happy
       if ! $root_parent
@@ -79,13 +79,15 @@ class PryTimetravel
         @previous_pid ||= []
         @previous_pid.push child_pid
 
-        # Perform operation
-        yield
+        # Perform parent operation
+        parent.()
 
       else
         child_pid = $$
         dlog("I am child #{child_pid}: I have a parent pid #{parent_pid}")
         enter_suspended_animation
+        # Perform child operation
+        child.()
       end
     end
 

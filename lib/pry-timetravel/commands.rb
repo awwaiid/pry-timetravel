@@ -22,9 +22,11 @@ Pry::Commands.create_command "snap", "Create a snapshot that you can later retur
     if opts.l?
       output.puts PryTimetravel.snapshot_list
     else
-      PryTimetravel.snapshot do
-        run(args.join(" ")) unless args.empty?
-      end
+      PryTimetravel.snapshot(
+        -> { run(args.join(" ")) unless args.empty? },
+        -> { run('whereami') }
+      )
+      #  run('whereami')
     end
   end
 end
