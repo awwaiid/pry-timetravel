@@ -23,13 +23,15 @@ class PryTimetravel
     end
 
     def enter_suspended_animation
+      dlog("Installing SIGCONT trap")
       old_sigcont_handler = Signal.trap('CONT') do
         dlog("Got a SIGCONT")
       end
 
+      dlog("Installing SIGEXIT trap")
       old_sigexit_handler = Signal.trap('EXIT') do
         dlog("got EXIT")
-        Kernel.exit!
+        Kernel.exit! true
       end
 
       dlog("Stopping myself")
@@ -38,6 +40,7 @@ class PryTimetravel
 
       dlog("Returning to old SIGCONT")
       Signal.trap('CONT', old_sigcont_handler || "DEFAULT")
+
       dlog("Returning to old SIGEXIT")
       Signal.trap('EXIT', old_sigexit_handler || "DEFAULT")
     end
@@ -50,16 +53,18 @@ class PryTimetravel
         child_pid = fork
         if child_pid
           Signal.trap('INT') do
-            dlog("root-parent got INT")
+            dlog("root-parent got INT, ignoring")
           end
           Signal.trap('USR1') do
-            dlog("root-parent got USR1")
-            Kernel.exit!
+            dlog("root-parent got USR1, exiting")
+            Kernel.exit! true
           end
           dlog "Root parent waiting on #{child_pid}"
+          #  Process.waitall
           Process.waitpid child_pid
-          dlog "Root parent exiting!"
-          Kernel.exit!
+          #  Process.waitpid 0
+          dlog "Root parent exiting after wait"
+          Kernel.exit! true
         end
       end
 
@@ -92,7 +97,7 @@ class PryTimetravel
       dlog("Thinking about time travel...");
 
       if target_pid.nil? && @previous_pid && ! @previous_pid.empty?
-        count = 1 if count == 0
+        count = 1 if count < 1
         target_pid = @previous_pid[-count]
       else
         target_pid = target_pid
