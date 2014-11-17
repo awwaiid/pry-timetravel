@@ -1,7 +1,7 @@
 require 'rubygems'
 require 'pry'
 
-require File.expand_path('../pry-timetravel/commands', __FILE__)
+require_relative 'pry-timetravel/commands'
 
 class PryTimetravel
   class << self
