@@ -20,9 +20,10 @@ Pry::Commands.create_command "snap", "Create a snapshot that you can later retur
   end
   def process
     if opts.l?
-      output.puts PryTimetravel.snapshot_list
+      output.puts PryTimetravel.snapshot_list(target)
     else
       PryTimetravel.snapshot(
+        target,
         -> { run(args.join(" ")) unless args.empty? },
         -> { run('whereami') }
       )
@@ -49,10 +50,10 @@ Pry::Commands.create_command "back", "Go back to the most recent snapshot" do
   end
   def process
     if opts.h?
-      PryTimetravel.restore_root_snapshot
+      PryTimetravel.restore_root_snapshot(target)
     else
       count = args.first.to_i
-      PryTimetravel.restore_snapshot(opts[:p], count)
+      PryTimetravel.restore_snapshot(target, opts[:p], count)
     end
   end
 end
