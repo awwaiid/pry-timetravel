@@ -131,7 +131,7 @@ class PryTimetravel
       out
     end
 
-    def restore_snapshot(target, target_pid = nil, count = nil)
+    def restore_snapshot(target, target_pid = nil, count = 1)
       dlog("Thinking about time travel... $$");
 
       if target_pid.nil? && @snap_tree && ! @snap_tree[$$.to_s].nil?

@@ -52,8 +52,8 @@ Pry::Commands.create_command "back", "Go back to the most recent snapshot" do
     if opts.h?
       PryTimetravel.restore_root_snapshot(target)
     else
-      count = args.first.to_i
-      PryTimetravel.restore_snapshot(target, opts[:p], count)
+      target_pid = args.first ? args.first.to_i : opts[:p]
+      PryTimetravel.restore_snapshot(target, target_pid)
     end
   end
 end
