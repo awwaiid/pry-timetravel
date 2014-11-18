@@ -57,14 +57,16 @@ class PryTimetravel
         end
         Signal.trap('USR1') do
           dlog("root-parent got USR1, exiting")
+          FileUtils.rm("/tmp/timetravel_#{$root_parent}.json")
           Kernel.exit! true
         end
         dlog "Root parent waiting on #{child_pid}"
-        sleep
+        #  sleep
         #  Process.waitall
-        #  Process.waitpid child_pid
+        Process.waitpid child_pid
         #  Process.waitpid 0
         dlog "Root parent exiting after wait"
+        FileUtils.rm("/tmp/timetravel_#{$root_parent}.json")
         Kernel.exit! true
       end
     end
