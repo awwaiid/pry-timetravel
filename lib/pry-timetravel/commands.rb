@@ -7,7 +7,7 @@ Pry::Commands.create_command "snap", "Create a snapshot that you can later retur
            snap --list
 
     This will add a snapshot which you can return to later.
-    
+
     If you provide [cmd] then that command will also be run -- nice for "snap next" in conjunction with pry-byebug.
   BANNER
 
@@ -27,7 +27,6 @@ Pry::Commands.create_command "snap", "Create a snapshot that you can later retur
         -> { run(args.join(" ")) unless args.empty? },
         -> { run('whereami') }
       )
-      #  run('whereami')
     end
   end
 end
