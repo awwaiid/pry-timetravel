@@ -39,7 +39,7 @@ class PryTimetravel
       Process.kill 'SIGSTOP', $$
       dlog("Back from SIGSTOP!")
 
-      @snap_tree = JSON.parse(File.read("/tmp/timetravel_#{$root_parent}.json"))
+      load_snap_tree
 
       dlog("Returning to old SIGCONT")
       Signal.trap('CONT', old_sigcont_handler || "DEFAULT")
@@ -57,7 +57,7 @@ class PryTimetravel
         end
         Signal.trap('USR1') do
           dlog("root-parent got USR1, exiting")
-          FileUtils.rm("/tmp/timetravel_#{$root_parent}.json")
+          cleanup_snap_tree
           Kernel.exit! true
         end
         dlog "Root parent waiting on #{child_pid}"
@@ -66,6 +66,7 @@ class PryTimetravel
         Process.waitpid child_pid
         #  Process.waitpid 0
         dlog "Root parent exiting after wait"
+        cleanup_snap_tree
         FileUtils.rm("/tmp/timetravel_#{$root_parent}.json")
         Kernel.exit! true
       end
@@ -115,7 +116,9 @@ class PryTimetravel
     end
 
     def snapshot_list(target, indent = "", node = @timetravel_root.to_s)
-      # @snap_tree && @snap_tree.keys.join(" ")
+      if node == ""
+        return "No snapshots"
+      end
       return unless node && node != ""
 
       # This shouldn't be here
@@ -146,9 +149,7 @@ class PryTimetravel
       if target_pid
         dlog("ME #{$$}: I found a target pid #{target_pid}! TIME TRAVEL TIME")
 
-        File.open("/tmp/timetravel_#{$root_parent}.json", 'w') do |f|
-          f.puts @snap_tree.to_json
-        end
+        save_snap_tree
 
         Process.kill 'SIGCONT', target_pid
         enter_suspended_animation
@@ -160,6 +161,24 @@ class PryTimetravel
 
     def restore_root_snapshot
       restore_snapshot(@timetravel_root) if @timetravel_root
+    end
+
+    def snap_tree_filename
+      "/tmp/timetravel_#{$root_parent}.json"
+    end
+
+    def save_snap_tree
+      File.open(snap_tree_filename, 'w') do |f|
+        f.puts @snap_tree.to_json
+      end
+    end
+
+    def load_snap_tree
+      @snap_tree = JSON.parse(File.read(snap_tree_filename))
+    end
+
+    def cleanup_snap_tree
+      FileUtils.rm(snap_tree_filename)
     end
 
   end
