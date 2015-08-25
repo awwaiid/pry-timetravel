@@ -15,6 +15,7 @@ class PryTimetravel
       end
     end
 
+    # TODO: Should probably delay calling this until first snapshot
     at_exit do
       PryTimetravel.dlog "at_exit"
       if $root_parent && $$ != $root_parent
@@ -79,13 +80,17 @@ class PryTimetravel
         start_root_parent
       end
 
+      @id ||= 0
       @timetravel_root ||= $$
       @snap_tree ||= {
         $$.to_s => {
+          "id" => @id,
           "file" => target.eval('__FILE__'),
           "line" => target.eval('__LINE__'),
+          "time" => Time.now.to_f,
         }
       }
+      @id += 1
 
       parent_pid = $$
       child_pid = fork
@@ -122,10 +127,13 @@ class PryTimetravel
       return unless node && node != ""
 
       # This shouldn't be here
+      # This is to make a fake current snapshot
       @snap_tree[$$.to_s]["file"] = target.eval('__FILE__')
       @snap_tree[$$.to_s]["line"] = target.eval('__LINE__')
+      @snap_tree[$$.to_s]["time"] = Time.now.to_f
+      @snap_tree[$$.to_s]["id"]   = @id
 
-      out = "#{indent}#{node} #{@snap_tree[node]["file"]} #{@snap_tree[node]["line"]} #{ node == $$.to_s ? '***' : ''}\n"
+      out = "#{indent}#{node} (#{@snap_tree[node]["id"]}) #{@snap_tree[node]["file"]} #{@snap_tree[node]["line"]} #{ node == $$.to_s ? '***' : ''}\n"
       @snap_tree.keys.select { |n|
         @snap_tree[n]["previous"] == node.to_i
       }.each do |n|
@@ -142,6 +150,8 @@ class PryTimetravel
         target_pid = @snap_tree[$$.to_s]["previous"]
         @snap_tree[$$.to_s]["file"] = target.eval('__FILE__')
         @snap_tree[$$.to_s]["line"] = target.eval('__LINE__')
+        @snap_tree[$$.to_s]["time"] = Time.now.to_f
+        @snap_tree[$$.to_s]["id"]   = @id
       else
         target_pid = target_pid
       end
@@ -175,6 +185,7 @@ class PryTimetravel
 
     def load_snap_tree
       @snap_tree = JSON.parse(File.read(snap_tree_filename))
+      @id = @snap_tree.values.map{|snap| snap['id']}.max + 1
     end
 
     def cleanup_snap_tree

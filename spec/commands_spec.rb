@@ -36,8 +36,8 @@ describe "pry-timetravel" do
       writer.puts("snap")
       writer.puts("snap --list")
 
-      all1, pid1 = reader.expect(/^(\d+) <main> 1/,1)
-      all2, pid2 = reader.expect(/^  (\d+) <main> 1 \*\*\*/,1)
+      all1, pid1 = reader.expect(/^(\d+) \(0\) <main> 1/,1)
+      all2, pid2 = reader.expect(/^  (\d+) \(1\) <main> 1 \*\*\*/,1)
 
       expect(pid1.to_i).to be > 0
       expect(pid2.to_i).to be > 0
@@ -65,10 +65,10 @@ describe "pry-timetravel" do
   it "Can time-travel to a previous var value" do
     PTY.spawn(pry_timetravel_cmd) do |reader, writer, cmd_pid|
       writer.puts("x = 7")
-      reader.expect(/^=> 7/,1)
+      expect(reader.expect(/^=> 7/,1)).to be_truthy
       writer.puts("snap")
       writer.puts("x")
-      reader.expect(/^=> 7/,1)
+      expect(reader.expect(/^=> 7/,1)).to be_truthy
       writer.puts("snap")
       writer.puts("x = 7")
       reader.expect(/^=> 13/,1)
