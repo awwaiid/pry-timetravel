@@ -4,6 +4,15 @@ require 'json'
 
 require_relative 'pry-timetravel/commands'
 
+# = Timetravel!
+#
+# This is a pry plugin that keeps a pool of fork()ed process checkpoints, so
+# that you can jump "back in time" to a previous place in your execution.
+#
+# == Forking Model
+#
+# When you create a snapshot, fork() is executed. The parent (original) process
+# is suspended, and the new child process picks up where that left off.
 class PryTimetravel
   class << self
 
@@ -25,30 +34,38 @@ class PryTimetravel
     end
 
     def enter_suspended_animation
-      dlog("Installing SIGCONT trap")
+      dlog("Suspend: Installing SIGCONT trap")
       old_sigcont_handler = Signal.trap('CONT') do
         dlog("Got a SIGCONT")
       end
 
-      dlog("Installing SIGEXIT trap")
+      dlog("Suspend: Installing SIGEXIT trap")
       old_sigexit_handler = Signal.trap('EXIT') do
         dlog("got EXIT")
         Kernel.exit! true
       end
 
-      dlog("Stopping myself")
+      dlog("Suspend: Stopping myself")
       Process.kill 'SIGSTOP', $$
-      dlog("Back from SIGSTOP!")
 
+      dlog("Resume: Back from SIGSTOP! Loading snapshot tree")
       load_snap_tree
 
-      dlog("Returning to old SIGCONT")
+      dlog("Resume: Returning to old SIGCONT")
       Signal.trap('CONT', old_sigcont_handler || "DEFAULT")
 
-      dlog("Returning to old SIGEXIT")
+      dlog("Resume: Returning to old SIGEXIT")
       Signal.trap('EXIT', old_sigexit_handler || "DEFAULT")
     end
 
+    # The root parent is a sort of overseer of the whole tree, and something
+    # that is still alive and waiting for any signals from the outside world.
+    #
+    # Once any time travel starts, the parent forks and waits for its one and only direct child. All the other action happens in that child and its own children.
+    #
+    # If you USR1 this root parent, it will try to clean up the entire tree.
+    #
+    # It ignores INT, so that if you ^C the process it won't die so quickly.
     def start_root_parent
       $root_parent = $$
       child_pid = fork
@@ -57,16 +74,13 @@ class PryTimetravel
           dlog("root-parent got INT, ignoring")
         end
         Signal.trap('USR1') do
-          dlog("root-parent got USR1, exiting")
+          dlog("Root-parent: Got USR1, exiting")
           cleanup_snap_tree
           Kernel.exit! true
         end
-        dlog "Root parent waiting on #{child_pid}"
-        #  sleep
-        #  Process.waitall
+        dlog "Root parent: Waiting on child pid #{child_pid}"
         Process.waitpid child_pid
-        #  Process.waitpid 0
-        dlog "Root parent exiting after wait"
+        dlog "Root parent: Exiting after wait"
         cleanup_snap_tree
         FileUtils.rm("/tmp/timetravel_#{$root_parent}.json")
         Kernel.exit! true
@@ -97,16 +111,17 @@ class PryTimetravel
 
       if child_pid
 
-        dlog("I am parent #{parent_pid}: I have a child pid #{child_pid}")
+        dlog("Snapshot: I am parent #{parent_pid}. I have a child pid #{child_pid}. Now suspending.")
         enter_suspended_animation
 
-        # Perform child operation
-        child.()
+        dlog("Snapshot: Back from suspended animation. Running on_return_do.")
+        # Perform operation now that we've come back
+        opts[:on_return_do].()
 
       else
 
         child_pid = $$
-        dlog("I am child #{child_pid}: I have a parent pid #{parent_pid}")
+        dlog("Snapshot: I am child #{child_pid}. I have a parent pid #{parent_pid}")
 
         @snap_tree[child_pid.to_s] = {
           "previous" => parent_pid,
@@ -114,8 +129,9 @@ class PryTimetravel
           "line" => target.eval('__LINE__'),
         }
 
-        # Perform parent operation
-        parent.()
+        # Perform immediate operation
+        dlog("Snapshot: Running now_do.")
+        opts[:now_do].()
 
       end
     end
@@ -142,11 +158,10 @@ class PryTimetravel
       out
     end
 
-    def restore_snapshot(target, target_pid = nil, count = 1)
-      dlog("Thinking about time travel... $$");
+    def restore_snapshot(target, target_pid = nil)
+      dlog("Restore: Trying to restore,");
 
       if target_pid.nil? && @snap_tree && ! @snap_tree[$$.to_s].nil?
-        count = 1 if count < 1
         target_pid = @snap_tree[$$.to_s]["previous"]
         @snap_tree[$$.to_s]["file"] = target.eval('__FILE__')
         @snap_tree[$$.to_s]["line"] = target.eval('__LINE__')
@@ -161,10 +176,13 @@ class PryTimetravel
 
         save_snap_tree
 
+        # Bring our target back to life
         Process.kill 'SIGCONT', target_pid
+
+        # Go to sleeeeeeeppppp
         enter_suspended_animation
       else
-        dlog("I was unable to time travel. Maybe it is a myth.");
+        dlog("Restore: I was unable to time travel. Maybe it is a myth.");
         puts "No previous snapshot found."
       end
     end
@@ -185,7 +203,8 @@ class PryTimetravel
 
     def load_snap_tree
       @snap_tree = JSON.parse(File.read(snap_tree_filename))
-      @id = @snap_tree.values.map{|snap| snap['id']}.max + 1
+      dlog("Loaded: " + @snap_tree.to_json)
+      @id = (@snap_tree.values.map{|snap| snap['id']}.max || 0) + 1
     end
 
     def cleanup_snap_tree

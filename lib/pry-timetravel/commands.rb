@@ -24,8 +24,8 @@ Pry::Commands.create_command "snap", "Create a snapshot that you can later retur
     else
       PryTimetravel.snapshot(
         target,
-        -> { run(args.join(" ")) unless args.empty? },
-        -> { run('whereami') }
+        now_do:        -> { run(args.join(" ")) unless args.empty? },
+        on_return_do:  -> { run('whereami') }
       )
     end
   end
