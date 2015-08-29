@@ -87,7 +87,9 @@ class PryTimetravel
       end
     end
 
-    def snapshot(target, parent = -> {}, child = -> {})
+    def snapshot(target, opts = {})
+      opts[:now_do] ||= -> {}
+      opts[:on_return_do]  ||= -> {}
 
       # We need a root-parent to keep the shell happy
       if ! $root_parent
