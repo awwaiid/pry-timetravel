@@ -2,26 +2,7 @@ require './spec/spec_helper'
 require 'pty'
 require 'expect'
 
-# pry_timetravel_cmd = "pry -f -e 'Pry.config.correct_indent=false;' --no-pager --no-history --noprompt -s timetravel"
 pry_timetravel_cmd = "TERM=dumb pry -f --no-color --no-pager --no-history --noprompt -s timetravel"
-
-def strip_ansi(str)
-  str.gsub(/\e\[[0-9;]*[a-zA-Z]/, '')
-end
-
-def get_line(pry_read)
-  # puts "ignore1: [#{strip_ansi(pry_read.gets.chomp)}]"
-  # puts "ignore2: [#{strip_ansi(pry_read.gets.chomp)}]"
-  result = pry_read.gets.chomp
-  puts "result: [#{result}]"
-  result
-  result = pry_read.gets.chomp
-  puts "result: [#{result}]"
-  result
-  # strip_ansi(pry_read.gets.chomp)
-  # strip_ansi(result)
-end
-
 
 describe "pry-timetravel" do
   it "starts with no snapshots" do
@@ -30,6 +11,20 @@ describe "pry-timetravel" do
       found = reader.expect(/No snapshots/,1)
       expect(found).to be_truthy
     end
+  end
+  it "Exits with 0 snapshots cleanly" do
+    saved_pid = nil
+    PTY.spawn(pry_timetravel_cmd) do |reader, writer, cmd_pid|
+      saved_pid = cmd_pid
+      writer.puts("snap --list")
+      found = reader.expect(/No snapshots/,1)
+      expect(found).to be_truthy
+      writer.puts("exit")
+      sleep 1 # Give time to exit?
+    end
+
+    pid_list = `ps h -o pid,ppid -g #{saved_pid}`.split(/\n/)
+    expect(pid_list.count).to be == 0
   end
   it "creates one snapshot" do
     PTY.spawn(pry_timetravel_cmd) do |reader, writer, cmd_pid|

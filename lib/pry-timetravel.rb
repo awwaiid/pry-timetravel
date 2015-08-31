@@ -87,6 +87,23 @@ class PryTimetravel
       end
     end
 
+    def auto_snapshot
+      @trace = TracePoint.new() do |tp|
+        p [tp.lineno, tp.event, tp.raised_exception]
+      end
+    end
+
+    def update_current_snapshot_info(target, parent_pid = nil)
+      my_pid = $$.to_s
+      @snap_tree ||= {}
+      @snap_tree[my_pid] ||= {}
+      @snap_tree[my_pid]["file"]   = target.eval('__FILE__')
+      @snap_tree[my_pid]["line"]   = target.eval('__LINE__')
+      @snap_tree[my_pid]["time"]   = Time.now.to_f
+      @snap_tree[my_pid]["id"]     = @id
+      @snap_tree[my_pid]["previous"] = parent_pid if parent_pid
+    end
+
     def snapshot(target, opts = {})
       opts[:now_do] ||= -> {}
       opts[:on_return_do]  ||= -> {}
@@ -98,14 +115,7 @@ class PryTimetravel
 
       @id ||= 0
       @timetravel_root ||= $$
-      @snap_tree ||= {
-        $$.to_s => {
-          "id" => @id,
-          "file" => target.eval('__FILE__'),
-          "line" => target.eval('__LINE__'),
-          "time" => Time.now.to_f,
-        }
-      }
+      update_current_snapshot_info(target)
       @id += 1
 
       parent_pid = $$
@@ -125,11 +135,7 @@ class PryTimetravel
         child_pid = $$
         dlog("Snapshot: I am child #{child_pid}. I have a parent pid #{parent_pid}")
 
-        @snap_tree[child_pid.to_s] = {
-          "previous" => parent_pid,
-          "file" => target.eval('__FILE__'),
-          "line" => target.eval('__LINE__'),
-        }
+        update_current_snapshot_info(target, parent_pid)
 
         # Perform immediate operation
         dlog("Snapshot: Running now_do.")
@@ -144,12 +150,8 @@ class PryTimetravel
       end
       return unless node && node != ""
 
-      # This shouldn't be here
-      # This is to make a fake current snapshot
-      @snap_tree[$$.to_s]["file"] = target.eval('__FILE__')
-      @snap_tree[$$.to_s]["line"] = target.eval('__LINE__')
-      @snap_tree[$$.to_s]["time"] = Time.now.to_f
-      @snap_tree[$$.to_s]["id"]   = @id
+      # Freshen the current snapshot so it looks right
+      update_current_snapshot_info(target)
 
       out = "#{indent}#{node} (#{@snap_tree[node]["id"]}) #{@snap_tree[node]["file"]} #{@snap_tree[node]["line"]} #{ node == $$.to_s ? '***' : ''}\n"
       @snap_tree.keys.select { |n|
@@ -165,16 +167,15 @@ class PryTimetravel
 
       if target_pid.nil? && @snap_tree && ! @snap_tree[$$.to_s].nil?
         target_pid = @snap_tree[$$.to_s]["previous"]
-        @snap_tree[$$.to_s]["file"] = target.eval('__FILE__')
-        @snap_tree[$$.to_s]["line"] = target.eval('__LINE__')
-        @snap_tree[$$.to_s]["time"] = Time.now.to_f
-        @snap_tree[$$.to_s]["id"]   = @id
       else
         target_pid = target_pid
       end
 
-      if target_pid
-        dlog("ME #{$$}: I found a target pid #{target_pid}! TIME TRAVEL TIME")
+      if target_pid && @snap_tree[target_pid.to_s]
+        dlog("Restore: I found a target pid #{target_pid}! TIME TRAVEL TIME")
+
+        # Update our current information of our current running snapshot
+        update_current_snapshot_info(target)
 
         save_snap_tree
 
