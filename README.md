@@ -28,6 +28,10 @@ WARNING: Time travel may cause zombies.
 
 ## KNOWN ISSUES
 
+### General
+
+* If you close a connection, like to a DB, it is closed for all snapshots
+
 ### Redis fork detection
 
 Redis checks to see if you forked and yells at you about needing to reconnect.
@@ -44,8 +48,12 @@ this to bypass safety measures:
       end
     end
 
-Maybe this will be a default hack that gets activated on your first snapshot at
-some point in the near future.
+## Similar Technology
+
+* [Time Travel Python Debugger](https://github.com/TomOnTime/timetravelpdb)
+* [Elm's Time Traveling Debugger](http://debug.elm-lang.org/)
+* [OCaml Time Travel](http://caml.inria.fr/pub/docs/manual-ocaml-4.00/manual030.html#htoc195)
+* [Chronon (java - proprietary)](http://chrononsystems.com/)
 
 ## Meta
 
