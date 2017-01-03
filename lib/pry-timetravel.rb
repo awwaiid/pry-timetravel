@@ -49,7 +49,7 @@ class PryTimetravel
       Process.kill 'SIGSTOP', $$
 
       dlog("Resume: Back from SIGSTOP! Loading snapshot tree")
-      load_snap_tree
+      load_global_timetravel_state
 
       dlog("Resume: Returning to old SIGCONT")
       Signal.trap('CONT', old_sigcont_handler || "DEFAULT")
@@ -71,25 +71,57 @@ class PryTimetravel
       child_pid = fork
       if child_pid
         Signal.trap('INT') do
-          dlog("root-parent got INT, ignoring")
+          dlog("Root-parent: Got INT, ignoring")
         end
         Signal.trap('USR1') do
           dlog("Root-parent: Got USR1, exiting")
-          cleanup_snap_tree
+          cleanup_global_timetravel_state
           Kernel.exit! true
         end
         dlog "Root parent: Waiting on child pid #{child_pid}"
         Process.waitpid child_pid
         dlog "Root parent: Exiting after wait"
-        cleanup_snap_tree
+        cleanup_global_timetravel_state
         FileUtils.rm("/tmp/timetravel_#{$root_parent}.json")
         Kernel.exit! true
       end
     end
 
-    def auto_snapshot
-      @trace = TracePoint.new() do |tp|
-        p [tp.lineno, tp.event, tp.raised_exception]
+    def auto_snapshot(target)
+      if !@do_trace
+        @trace = TracePoint.new(:line) do |tp|
+          # puts "trace status: #{$in_trace}"
+          if !$in_trace
+            $in_trace = true
+            # puts "path: #{File.expand_path(tp.path)}"
+            # puts "snapshotting trace"
+            # if ! (tp.defined_class.to_s =~ /Pry/)
+            # if tp.path =~ /<main>/
+            # if tp.path =~ /<main>/
+            #   p [tp.path, tp.lineno, tp.event, tp.defined_class, Dir.pwd] # , tp.raised_exception]
+            # end
+            # if tp.path.include?(Dir.pwd) || tp.path =~ /<main>/
+            if File.expand_path(tp.path).include?(Dir.pwd)
+              p [tp.path, tp.lineno, tp.event, tp.defined_class, Dir.pwd] # , tp.raised_exception]
+              # p caller
+            # if tp.path =~ /<main>/
+            #   # p tp
+            #   p [tp.path, tp.lineno, tp.event] # , tp.raised_exception]
+              PryTimetravel.snapshot(
+                tp.binding,
+                # now_do:        -> { run(args.join(" ")) unless args.empty? },
+                # on_return_do:  -> { run('whereami') }
+              )
+            # end
+            end
+            $in_trace = false
+          end
+        end
+        @trace.enable
+        @do_trace = true
+      else
+        @trace.disable
+        @do_trace = false
       end
     end
 
@@ -144,7 +176,7 @@ class PryTimetravel
       end
     end
 
-    def snapshot_list(target, indent = "", node = @timetravel_root.to_s)
+    def snapshot_list(target, indent = "", node = @timetravel_root.to_s, my_indent = nil)
       if node == ""
         return "No snapshots"
       end
@@ -153,12 +185,22 @@ class PryTimetravel
       # Freshen the current snapshot so it looks right
       update_current_snapshot_info(target)
 
-      out = "#{indent}#{node} (#{@snap_tree[node]["id"]}) #{@snap_tree[node]["file"]} #{@snap_tree[node]["line"]} #{ node == $$.to_s ? '***' : ''}\n"
-      @snap_tree.keys.select { |n|
-        @snap_tree[n]["previous"] == node.to_i
-      }.each do |n|
-        out += snapshot_list(target, indent + "  ", n)
+      code_line = IO.readlines(@snap_tree[node]["file"])[@snap_tree[node]["line"].to_i - 1].chomp
+
+      out = "#{my_indent || indent}#{node} (#{@snap_tree[node]["id"]}) #{@snap_tree[node]["file"]} #{@snap_tree[node]["line"]} #{ node == $$.to_s ? '***' : ''} #{code_line}\n"
+      children = @snap_tree.keys.select { |n| @snap_tree[n]["previous"] == node.to_i }
+      if children.length == 1
+        out += snapshot_list(target, indent, children[0])
+      else
+        children.each { |n|
+          out += snapshot_list(target, indent + "  ", n, indent + "> ")
+        }
       end
+      # @snap_tree.keys.select { |n|
+      #   @snap_tree[n]["previous"] == node.to_i
+      # }.each do |n|
+        # out += snapshot_list(target, indent + "  ", n)
+      # end
       out
     end
 
@@ -177,7 +219,7 @@ class PryTimetravel
         # Update our current information of our current running snapshot
         update_current_snapshot_info(target)
 
-        save_snap_tree
+        save_global_timetravel_state
 
         # Bring our target back to life
         Process.kill 'SIGCONT', target_pid
@@ -194,24 +236,30 @@ class PryTimetravel
       restore_snapshot(@timetravel_root) if @timetravel_root
     end
 
-    def snap_tree_filename
+    def global_timetravel_state_filename
       "/tmp/timetravel_#{$root_parent}.json"
     end
 
-    def save_snap_tree
-      File.open(snap_tree_filename, 'w') do |f|
-        f.puts @snap_tree.to_json
+    def save_global_timetravel_state
+      File.open(global_timetravel_state_filename, 'w') do |f|
+        global_state = {
+          snap_tree: @snap_tree,
+          do_trace: @do_trace
+        }
+        f.puts global_state.to_json
       end
     end
 
-    def load_snap_tree
-      @snap_tree = JSON.parse(File.read(snap_tree_filename))
+    def load_global_timetravel_state
+      global_state = JSON.parse(File.read(global_timetravel_state_filename))
+      @snap_tree = global_state["snap_tree"]
+      @do_trace  = global_state["do_trace"]
       dlog("Loaded: " + @snap_tree.to_json)
       @id = (@snap_tree.values.map{|snap| snap['id']}.max || 0) + 1
     end
 
-    def cleanup_snap_tree
-      FileUtils.rm(snap_tree_filename)
+    def cleanup_global_timetravel_state
+      FileUtils.rm(global_timetravel_state_filename)
     end
 
   end

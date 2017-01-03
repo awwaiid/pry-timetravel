@@ -24,7 +24,7 @@ describe "pry-timetravel" do
       sleep 0.1 # Give time to exit?
     end
 
-    pid_list = `ps h -o pid,ppid -g #{saved_pid}`.split(/\n/)
+    pid_list = `ps h -o pid,ppid -s #{saved_pid}`.split(/\n/)
     expect(pid_list.count).to be == 0
   end
 
@@ -39,11 +39,12 @@ describe "pry-timetravel" do
       expect(pid1.to_i).to be > 0
       expect(pid2.to_i).to be > 0
 
-      pid_list = `ps h -o pid,ppid -g #{cmd_pid}`.split(/\n/)
+      pid_list = `ps h -o pid,ppid,sess -s #{cmd_pid}`.split(/\n/)
+      # 0: shell
       # 1: root
       # 2: base snapshot
       # 3: current running branch
-      expect(pid_list.count).to be == 3
+      expect(pid_list.count).to be == 4
     end
   end
 
@@ -61,12 +62,13 @@ describe "pry-timetravel" do
       expect(pid2.to_i).to be > 0
       expect(pid3.to_i).to be > 0
 
-      pid_list = `ps h -o pid,ppid -g #{cmd_pid}`.split(/\n/)
+      pid_list = `ps h -o pid,ppid -s #{cmd_pid}`.split(/\n/)
+      # 0: shell
       # 1: root
       # 2: base snapshot
       # 2: second snapshot
       # 3: current running branch
-      expect(pid_list.count).to be == 4
+      expect(pid_list.count).to be == 5
     end
   end
 
@@ -97,6 +99,23 @@ describe "pry-timetravel" do
       reader.expect(/^=> 13/,1)
       writer.puts("back")
       reader.expect(/^At the top level\./,1)
+      writer.puts("x")
+      result = reader.expect(/^=> 7/,1)
+      expect(result).to be_truthy
+    end
+  end
+
+  it "Can auto-checkpoint" do
+    PTY.spawn(pry_timetravel_cmd) do |reader, writer, cmd_pid|
+      writer.puts("snap -a")
+      writer.puts("x = 7")
+      expect(reader.expect(/^=> 7/,1)).to be_truthy
+      writer.puts("x")
+      expect(reader.expect(/^=> 7/,1)).to be_truthy
+      writer.puts("x = 13")
+      expect(reader.expect(/^=> 13/,1)).to be_truthy
+      writer.puts("back")
+      expect(reader.expect(/^At the top level\./,1)).to be_truthy
       writer.puts("x")
       result = reader.expect(/^=> 7/,1)
       expect(result).to be_truthy
