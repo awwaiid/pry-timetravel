@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name          = 'pry-timetravel'
-  s.version       = '0.0.3'
+  s.version       = '0.0.4'
   s.summary       = 'Timetravel'
   s.description   = 'Allows you to timetravel!'
   s.homepage      = 'https://github.com/awwaiid/pry-timetravel'
@@ -14,7 +14,4 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'rake'
   s.add_development_dependency 'rspec'
   s.add_development_dependency 'pry-byebug'
-  #  s.add_development_dependency 'yard'
-  #  s.add_development_dependency 'redcarpet'
-  #  s.add_development_dependency 'capybara'
 end
